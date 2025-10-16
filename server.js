@@ -12,7 +12,7 @@ const allowedOrigins = [
   "http://127.0.0.1:3000",
   "https://portfolio.com",
   "https://www.yourdomain.com",
-  "https://your-vercel-domain.vercel.app" 
+  "https://portfolio-cs85.vercel.app/" 
 ];
 
 app.use(
