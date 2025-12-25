@@ -7,18 +7,19 @@ const fetch = require("node-fetch");
 
 const app = express();
 
+// ==================== CORS ====================
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:3000",
   "https://portfolio.com",
   "https://www.yourdomain.com",
-  "https://portfolio-cs85.vercel.app" // trailing slash hata diya
+  "https://portfolio-cs85.vercel.app"
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin) return callback(null, true); 
+      if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -30,6 +31,7 @@ app.use(
 
 app.use(express.json());
 
+// ==================== RATE LIMITER ====================
 const limiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 5,
@@ -37,6 +39,7 @@ const limiter = rateLimit({
 });
 app.use("/send-email", limiter);
 
+// ==================== CONTACT ROUTE ====================
 app.post("/send-email", async (req, res) => {
   const { name, email, message, token } = req.body;
 
@@ -45,17 +48,22 @@ app.post("/send-email", async (req, res) => {
   }
 
   try {
-    // =========== reCAPTCHA Verification ===========
-    const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET}&response=${token}`;
+    // =========== reCAPTCHA v2 VERIFY ===========
+    const verifyUrl =
+      `https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET}&response=${token}`;
+
     const captchaRes = await fetch(verifyUrl, { method: "POST" });
     const captchaData = await captchaRes.json();
 
     if (!captchaData.success) {
-      return res.status(400).json({ success: false, msg: "reCAPTCHA failed" });
+      return res.status(400).json({
+        success: false,
+        msg: "reCAPTCHA verification failed",
+      });
     }
 
-    // =========== Nodemailer Setup ===========
-    let transporter = nodemailer.createTransport({
+    // =========== NODEMAILER ===========
+    const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
@@ -71,10 +79,13 @@ app.post("/send-email", async (req, res) => {
     });
 
     res.json({ success: true, msg: "Email sent successfully!" });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, msg: "Server error" });
   }
 });
 
-app.listen(5000, () => console.log("✅ Server running on port 5000"));
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+
