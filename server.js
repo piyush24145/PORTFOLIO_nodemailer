@@ -1,9 +1,9 @@
+require("dotenv").config();
 const express = require("express");
 const nodemailer = require("nodemailer");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const fetch = require("node-fetch");
-require("dotenv").config();
 
 const app = express();
 
@@ -12,7 +12,7 @@ const allowedOrigins = [
   "http://127.0.0.1:3000",
   "https://portfolio.com",
   "https://www.yourdomain.com",
-  "https://portfolio-cs85.vercel.app/" 
+  "https://portfolio-cs85.vercel.app" // trailing slash hata diya
 ];
 
 app.use(
@@ -30,14 +30,12 @@ app.use(
 
 app.use(express.json());
 
-
 const limiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 5,
   message: { success: false, msg: "Too many requests. Try again later." },
 });
 app.use("/send-email", limiter);
-
 
 app.post("/send-email", async (req, res) => {
   const { name, email, message, token } = req.body;
@@ -47,7 +45,7 @@ app.post("/send-email", async (req, res) => {
   }
 
   try {
-  
+    // =========== reCAPTCHA Verification ===========
     const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET}&response=${token}`;
     const captchaRes = await fetch(verifyUrl, { method: "POST" });
     const captchaData = await captchaRes.json();
@@ -56,7 +54,7 @@ app.post("/send-email", async (req, res) => {
       return res.status(400).json({ success: false, msg: "reCAPTCHA failed" });
     }
 
-    
+    // =========== Nodemailer Setup ===========
     let transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -65,7 +63,6 @@ app.post("/send-email", async (req, res) => {
       },
     });
 
-    
     await transporter.sendMail({
       from: email,
       to: process.env.EMAIL_USER,
