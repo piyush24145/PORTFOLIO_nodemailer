@@ -1,4 +1,4 @@
-require("dotenv").config(); // optional, Render environment variables already set
+require("dotenv").config();
 const express = require("express");
 const nodemailer = require("nodemailer");
 const cors = require("cors");
@@ -7,37 +7,45 @@ const fetch = require("node-fetch");
 
 const app = express();
 
-// ==================== CORS ====================
-const allowedOrigins = [process.env.FRONTEND_URL];
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:3000",
+  "https://portfolio.com",
+  "https://www.yourdomain.com",
+  "https://portfolio-cs85.vercel.app" // trailing slash hata diya
+];
+
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) callback(null, true);
-      else callback(new Error("Not allowed by CORS"));
+      if (!origin) return callback(null, true); 
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
     },
   })
 );
 
 app.use(express.json());
 
-// ==================== RATE LIMITER ====================
 const limiter = rateLimit({
-  windowMs: 10 * 60 * 1000, // 10 min
+  windowMs: 10 * 60 * 1000,
   max: 5,
   message: { success: false, msg: "Too many requests. Try again later." },
 });
 app.use("/send-email", limiter);
 
-// ==================== CONTACT ROUTE ====================
 app.post("/send-email", async (req, res) => {
   const { name, email, message, token } = req.body;
 
-  if (!name || !email || !message || !token)
+  if (!name || !email || !message || !token) {
     return res.status(400).json({ success: false, msg: "All fields required" });
+  }
 
   try {
-    // ===== reCAPTCHA v3 VERIFY =====
+    // =========== reCAPTCHA Verification ===========
     const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET}&response=${token}`;
     const captchaRes = await fetch(verifyUrl, { method: "POST" });
     const captchaData = await captchaRes.json();
@@ -46,12 +54,7 @@ app.post("/send-email", async (req, res) => {
       return res.status(400).json({ success: false, msg: "reCAPTCHA failed" });
     }
 
-    // Score check for v3 (threshold 0.5)
-    if (captchaData.score < 0.5) {
-      return res.status(400).json({ success: false, msg: "reCAPTCHA score too low" });
-    }
-
-    // ===== Nodemailer =====
+    // =========== Nodemailer Setup ===========
     let transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -74,6 +77,4 @@ app.post("/send-email", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
-
+app.listen(5000, () => console.log("✅ Server running on port 5000"));
