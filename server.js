@@ -48,50 +48,65 @@ app.post("/send-email", async (req, res) => {
   }
 
   try {
-    // ===== reCAPTCHA v3 VERIFY =====
-    const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET}&response=${token}`;
-    const captchaRes = await fetch(verifyUrl, { method: "POST" });
-    const captchaData = await captchaRes.json();
+    // ================= reCAPTCHA VERIFY =================
+    const verifyUrl = "https://www.google.com/recaptcha/api/siteverify";
 
-    // Check success + score
+    const captchaRes = await fetch(verifyUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `secret=${process.env.RECAPTCHA_SECRET}&response=${token}`,
+    });
+
+    const captchaData = await captchaRes.json();
+    console.log("🟡 CAPTCHA:", captchaData);
+
     if (!captchaData.success || captchaData.score < 0.5) {
       return res.status(400).json({
         success: false,
-        msg: "reCAPTCHA verification failed or score too low",
+        msg: "reCAPTCHA failed",
       });
     }
 
-    // Optional: check action
-    if (captchaData.action !== "contact_form") {
-      return res.status(400).json({
-        success: false,
-        msg: "reCAPTCHA action mismatch",
-      });
-    }
-
-    // ===== NODEMAILER =====
+    // ================= NODEMAILER =================
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: process.env.EMAIL_USER,  // ✅ tumhara Gmail (Render email)
-        pass: process.env.EMAIL_PASS,  // ✅ App Password
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
       },
     });
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,  // tumhara verified Gmail
-      replyTo: email,                // user ka email
-      to: process.env.EMAIL_USER,    // tumhara inbox
-      subject: `Portfolio Contact from ${name}`,
-      text: message,
+    // 🔥 VERY IMPORTANT VERIFY
+    transporter.verify((error, success) => {
+      if (error) {
+        console.log("❌ EMAIL VERIFY ERROR:", error);
+      } else {
+        console.log("✅ EMAIL SERVER READY");
+      }
     });
+
+    await transporter.sendMail({
+      from: `"Portfolio Contact" <${process.env.EMAIL_USER}>`,
+      to: process.env.EMAIL_USER,      // tumhara inbox
+      replyTo: email,                  // visitor ka email
+      subject: `Portfolio Contact from ${name}`,
+      html: `
+        <h3>New Portfolio Message</h3>
+        <p><b>Name:</b> ${name}</p>
+        <p><b>Email:</b> ${email}</p>
+        <p><b>Message:</b><br/>${message}</p>
+      `,
+    });
+
+    console.log("📩 EMAIL SENT SUCCESSFULLY");
 
     res.json({ success: true, msg: "Email sent successfully!" });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, msg: "Server error" });
+    console.error("❌ EMAIL ERROR:", err);
+    res.status(500).json({ success: false, msg: "Email failed" });
   }
 });
+
 
 // ==================== SERVER ====================
 const PORT = process.env.PORT || 5000;
