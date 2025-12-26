@@ -11,7 +11,7 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:3000",
-  "https://portfolio-cs85.vercel.app", // your deployed frontend
+  "https://portfolio-cs85.vercel.app", // frontend deployed
   "https://www.yourdomain.com",
 ];
 
@@ -33,7 +33,7 @@ app.use(express.json());
 // ==================== RATE LIMITER ====================
 const limiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 20, // dev/testing friendly, production me 5–10 recommended
+  max: 20, // testing friendly
   message: { success: false, msg: "Too many requests. Try again later." },
 });
 
@@ -73,15 +73,15 @@ app.post("/send-email", async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS, // App Password recommended
+        user: process.env.EMAIL_USER,  // ✅ tumhara Gmail (Render email)
+        pass: process.env.EMAIL_PASS,  // ✅ App Password
       },
     });
 
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,  // verified Gmail account
-      replyTo: email,                // user email
-      to: process.env.EMAIL_USER,
+      from: process.env.EMAIL_USER,  // tumhara verified Gmail
+      replyTo: email,                // user ka email
+      to: process.env.EMAIL_USER,    // tumhara inbox
       subject: `Portfolio Contact from ${name}`,
       text: message,
     });
@@ -96,5 +96,5 @@ app.post("/send-email", async (req, res) => {
 // ==================== SERVER ====================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
-;
+
 
