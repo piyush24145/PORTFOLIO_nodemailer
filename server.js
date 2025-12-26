@@ -19,7 +19,7 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
+      if (!origin) return callback(null, true); // Postman, curl etc.
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -33,13 +33,13 @@ app.use(express.json());
 
 // ==================== RATE LIMITER ====================
 const limiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 5,
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 5, // max 5 requests per window
   message: { success: false, msg: "Too many requests. Try again later." },
 });
 app.use("/send-email", limiter);
 
-// ==================== CONTACT ROUTE ====================
+// ==================== CONTACT ROUTE (reCAPTCHA v3) ====================
 app.post("/send-email", async (req, res) => {
   const { name, email, message, token } = req.body;
 
@@ -48,26 +48,33 @@ app.post("/send-email", async (req, res) => {
   }
 
   try {
-    // =========== reCAPTCHA v2 VERIFY ===========
-    const verifyUrl =
-      `https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET}&response=${token}`;
-
+    // ===== reCAPTCHA v3 VERIFY =====
+    const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET}&response=${token}`;
     const captchaRes = await fetch(verifyUrl, { method: "POST" });
     const captchaData = await captchaRes.json();
 
-    if (!captchaData.success) {
+    // Check success + score
+    if (!captchaData.success || captchaData.score < 0.5) {
       return res.status(400).json({
         success: false,
-        msg: "reCAPTCHA verification failed",
+        msg: "reCAPTCHA verification failed. Are you a robot?",
       });
     }
 
-    // =========== NODEMAILER ===========
+    // Optional: check action
+    if (captchaData.action !== "contact_form") {
+      return res.status(400).json({
+        success: false,
+        msg: "reCAPTCHA action mismatch",
+      });
+    }
+
+    // ===== NODEMAILER =====
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        pass: process.env.EMAIL_PASS, // App Password recommended
       },
     });
 
@@ -79,7 +86,6 @@ app.post("/send-email", async (req, res) => {
     });
 
     res.json({ success: true, msg: "Email sent successfully!" });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, msg: "Server error" });
