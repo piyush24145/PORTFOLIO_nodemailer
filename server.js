@@ -34,10 +34,12 @@ app.use(express.json());
 // ==================== RATE LIMITER ====================
 const limiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 5, // max 5 requests per window
+  max: 20, // pehle 5 tha, ab 20 requests allowed
   message: { success: false, msg: "Too many requests. Try again later." },
 });
+
 app.use("/send-email", limiter);
+
 
 // ==================== CONTACT ROUTE (reCAPTCHA v3) ====================
 app.post("/send-email", async (req, res) => {
