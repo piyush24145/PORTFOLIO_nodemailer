@@ -11,15 +11,14 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:3000",
-  "https://portfolio.com",
+  "https://portfolio-cs85.vercel.app", // your deployed frontend
   "https://www.yourdomain.com",
-  "https://portfolio-cs85.vercel.app"
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin) return callback(null, true); // Postman, curl etc.
+      if (!origin) return callback(null, true); // Postman / curl
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -34,14 +33,13 @@ app.use(express.json());
 // ==================== RATE LIMITER ====================
 const limiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 20, // pehle 5 tha, ab 20 requests allowed
+  max: 20, // dev/testing friendly, production me 5–10 recommended
   message: { success: false, msg: "Too many requests. Try again later." },
 });
 
 app.use("/send-email", limiter);
 
-
-// ==================== CONTACT ROUTE (reCAPTCHA v3) ====================
+// ==================== CONTACT ROUTE (reCAPTCHA v3 + Nodemailer) ====================
 app.post("/send-email", async (req, res) => {
   const { name, email, message, token } = req.body;
 
@@ -59,7 +57,7 @@ app.post("/send-email", async (req, res) => {
     if (!captchaData.success || captchaData.score < 0.5) {
       return res.status(400).json({
         success: false,
-        msg: "reCAPTCHA verification failed. Are you a robot?",
+        msg: "reCAPTCHA verification failed or score too low",
       });
     }
 
@@ -81,7 +79,8 @@ app.post("/send-email", async (req, res) => {
     });
 
     await transporter.sendMail({
-      from: email,
+      from: process.env.EMAIL_USER,  // verified Gmail account
+      replyTo: email,                // user email
       to: process.env.EMAIL_USER,
       subject: `Portfolio Contact from ${name}`,
       text: message,
@@ -94,6 +93,8 @@ app.post("/send-email", async (req, res) => {
   }
 });
 
+// ==================== SERVER ====================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+;
 
